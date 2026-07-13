@@ -3,9 +3,9 @@ package io.github.hyperliquid.sdk.model.userabstraction;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Response model for {@link io.github.hyperliquid.sdk.apis.Exchange#userSetAbstraction(String, UserAbstractionMode)}.
+ * Response model for {@link io.github.hyperliquid.sdk.apis.Exchange#agentSetAbstraction(String)}.
  */
-public class UserSetAbstraction {
+public class AgentSetAbstraction {
 
     /**
      * Top-level status (typically {@code "ok"}).

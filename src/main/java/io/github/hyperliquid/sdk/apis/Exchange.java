@@ -7,6 +7,7 @@ import io.github.hyperliquid.sdk.model.info.ClearinghouseState;
 import io.github.hyperliquid.sdk.model.info.SpotMeta;
 import io.github.hyperliquid.sdk.model.info.UpdateLeverage;
 import io.github.hyperliquid.sdk.model.order.*;
+import io.github.hyperliquid.sdk.model.userabstraction.AgentSetAbstraction;
 import io.github.hyperliquid.sdk.model.userabstraction.UserAbstractionMode;
 import io.github.hyperliquid.sdk.model.userabstraction.UserSetAbstraction;
 import io.github.hyperliquid.sdk.model.wallet.ApiWallet;
@@ -988,11 +989,13 @@ public class Exchange {
      * Set Agent abstraction mode.
      *
      * @param abstraction Agent abstraction value (valid values: "u", "p", "i")
-     * @return JSON response from the exchange
+     *                    one of the strings ["i", "u", "p"] where "i" is "disabled", "u" is "unifiedAccount", and "p" is "portfolioMargin
+     * @return AgentSetAbstraction
      * @throws HypeError If the request fails
      */
-    public JsonNode agentSetAbstraction(String abstraction) {
-        return postAction(action("agentSetAbstraction", "abstraction", abstraction));
+    public AgentSetAbstraction agentSetAbstraction(String abstraction) {
+        JsonNode jsonNode = postAction(action("agentSetAbstraction", "abstraction", abstraction));
+        return JSONUtil.convertValue(jsonNode, AgentSetAbstraction.class);
     }
 
     /**
