@@ -847,6 +847,9 @@ public class WebsocketManager {
         // handle subscriptions directly, preventing recursion.
         if (!isDedicated && requiresDedicatedConnection(subscription)) {
             String dedicatedKey = buildDedicatedKey(subscription);
+            LOG.info("Routing to dedicated connection: key=" + dedicatedKey
+                    + " isDedicated=" + isDedicated
+                    + " subscription=" + subscription);
             WebsocketManager dedicated = dedicatedConnections.computeIfAbsent(dedicatedKey, k -> {
                 LOG.info("Creating dedicated WebSocket connection for: " + k);
                 return createDedicatedManager();
@@ -879,8 +882,10 @@ public class WebsocketManager {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("method", "subscribe");
         payload.put("subscription", subscription);
+        String json = JSONUtil.writeValueAsString(payload);
+        LOG.info("[WS " + System.identityHashCode(this) + "] sendSubscribe: " + json);
         try {
-            webSocket.send(JSONUtil.writeValueAsString(payload));
+            webSocket.send(json);
         } catch (Exception e) {
             LOG.log(Level.FINE, "Failed to send subscribe message: " + subscription, e);
         }
