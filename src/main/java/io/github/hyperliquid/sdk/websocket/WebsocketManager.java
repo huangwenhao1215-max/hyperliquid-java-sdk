@@ -364,6 +364,10 @@ public class WebsocketManager {
                 try {
                     JsonNode msg = JSONUtil.readTree(text);
                     String identifier = toIdentifier(msg);
+                    LOG.info("[WS " + System.identityHashCode(WebsocketManager.this) + "] onMessage identifier=" + identifier
+                            + " matched=" + subscriptions.containsKey(identifier)
+                            + " knownKeys=" + subscriptions.keySet()
+                            + " raw=" + (text.length() > 500 ? text.substring(0, 500) + "...(truncated)" : text));
                     if (identifier == null || !subscriptions.containsKey(identifier)) return;
                     ActiveSubscription activeSubscription = subscriptions.get(identifier);
                     callbackExecutor.execute(() -> {
