@@ -882,9 +882,9 @@ public class WebsocketManager {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("method", "subscribe");
         payload.put("subscription", subscription);
-        String json = JSONUtil.writeValueAsString(payload);
-        LOG.info("[WS " + System.identityHashCode(this) + "] sendSubscribe: " + json);
         try {
+            String json = JSONUtil.writeValueAsString(payload);
+            LOG.info("[WS " + System.identityHashCode(this) + "] sendSubscribe: " + json);
             webSocket.send(json);
         } catch (Exception e) {
             LOG.log(Level.FINE, "Failed to send subscribe message: " + subscription, e);
