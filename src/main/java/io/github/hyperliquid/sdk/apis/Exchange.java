@@ -841,12 +841,18 @@ public class Exchange {
      * Place a TWAP order.
      * <p>
      * Unlike {@link #order(OrderRequest)}, the action Map is built by hand
-     * rather than via the {@code action(type, keyValues...)} helper: that
-     * helper silently drops any key whose value is {@code null}, but the
-     * {@code details.t} field below must be sent as an explicit {@code null}
-     * (present key, nil value) rather than omitted when there's no trigger
-     * price -- {@link Signing#packAsMsgpack} preserves explicit nulls inside
-     * a {@link Map}, which is what the exchange's schema expects.
+     * rather than via the {@code action(type, keyValues...)} helper, which
+     * skips {@code null}-valued keys entirely -- {@code details} is built the
+     * same way {@link Signing}'s {@code OrderWire} case handles its own
+     * optional fields (e.g. {@code limitPx}/{@code orderType}/{@code cloid}):
+     * a key is only added to the map when a value is actually present, never
+     * added with an explicit {@code null}. An earlier version of this method
+     * included an explicit {@code details.t = null} when there was no trigger
+     * price, which the exchange's signature verification rejected (it
+     * recovers a signer address from the actual wire bytes it re-hashes; a
+     * shape it doesn't recognize produces a nonsense recovered address,
+     * surfacing as a confusing "User or API Wallet ... does not exist" error
+     * for an address that was never actually configured anywhere).
      * </p>
      *
      * @param req TWAP order parameters
@@ -880,10 +886,10 @@ public class Exchange {
                 trigger.put("p", req.getTriggerPx());
                 trigger.put("a", req.getTriggerAbove() != null ? req.getTriggerAbove() : Boolean.TRUE);
                 details.put("t", trigger);
-            } else {
-                details.put("t", null);
             }
-            details.put("s", hasStopPx ? req.getStopPx() : null);
+            if (hasStopPx) {
+                details.put("s", req.getStopPx());
+            }
             action.put("details", details);
         }
 
