@@ -884,12 +884,12 @@ public class Exchange {
             Map<String, Object> details = new LinkedHashMap<>();
             if (hasTriggerPx) {
                 Map<String, Object> trigger = new LinkedHashMap<>();
-                trigger.put("p", req.getTriggerPx());
+                trigger.put("p", Signing.removeTrailingZeros(req.getTriggerPx()));
                 trigger.put("a", req.getTriggerAbove() != null ? req.getTriggerAbove() : Boolean.TRUE);
                 details.put("t", trigger);
             }
             if (hasStopPx) {
-                details.put("s", req.getStopPx());
+                details.put("s", Signing.removeTrailingZeros(req.getStopPx()));
             }
             action.put("details", details);
         }
