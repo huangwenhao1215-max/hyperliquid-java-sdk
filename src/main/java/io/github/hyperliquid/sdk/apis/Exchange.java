@@ -841,19 +841,16 @@ public class Exchange {
     /**
      * Place a TWAP order.
      * <p>
-     * Unlike {@link #order(OrderRequest)}, the action Map is built by hand
-     * rather than via the {@code action(type, keyValues...)} helper, which
-     * skips {@code null}-valued keys entirely -- {@code details} is built the
-     * same way {@link Signing}'s {@code OrderWire} case handles its own
-     * optional fields (e.g. {@code limitPx}/{@code orderType}/{@code cloid}):
-     * a key is only added to the map when a value is actually present, never
-     * added with an explicit {@code null}. An earlier version of this method
-     * included an explicit {@code details.t = null} when there was no trigger
-     * price, which the exchange's signature verification rejected (it
-     * recovers a signer address from the actual wire bytes it re-hashes; a
-     * shape it doesn't recognize produces a nonsense recovered address,
-     * surfacing as a confusing "User or API Wallet ... does not exist" error
-     * for an address that was never actually configured anywhere).
+     * When either trigger or stop price is present, {@code details} must be a
+     * complete 2-key structure ({@code t} and {@code s} both written, the
+     * missing one as explicit {@code null}): the backend's Rust struct
+     * ({@code t: Option, s: Option}) serializes every field when re-hashing
+     * (None → msgpack nil), so omitting a key makes our hash diverge and the
+     * signature recovers to a nonsense address, surfacing as a confusing
+     * "User or API Wallet ... does not exist" error. Earlier failures with
+     * partial {@code details} shapes ({@code {"t": null}} or {@code {"s": ...}},
+     * both 1-key) had the same root cause. A missing {@code details} entirely
+     * (plain market TWAP) is fine -- the outer Option is omitted on both sides.
      * </p>
      *
      * @param req TWAP order parameters
@@ -881,16 +878,21 @@ public class Exchange {
         boolean hasTriggerPx = req.getTriggerPx() != null && !req.getTriggerPx().isEmpty();
         boolean hasStopPx = req.getStopPx() != null && !req.getStopPx().isEmpty();
         if (hasTriggerPx || hasStopPx) {
+            // details 必须是完整的 2-key 结构（t 和 s 都写，缺的显式 null）：
+            // 后端 Rust struct (t: Option, s: Option) re-hash 时所有字段都序列化
+            // （None → msgpack nil），客户端 hash 若省略缺失键会与后端不匹配，
+            // ecrecover 出随机地址（"User or API Wallet ... does not exist"）。
+            // 参照 nktkas 集成测试的真实形态：t/s 恒成对出现，缺的为 null。
             Map<String, Object> details = new LinkedHashMap<>();
             if (hasTriggerPx) {
                 Map<String, Object> trigger = new LinkedHashMap<>();
                 trigger.put("p", Signing.removeTrailingZeros(req.getTriggerPx()));
                 trigger.put("a", req.getTriggerAbove() != null ? req.getTriggerAbove() : Boolean.TRUE);
                 details.put("t", trigger);
+            } else {
+                details.put("t", null);
             }
-            if (hasStopPx) {
-                details.put("s", Signing.removeTrailingZeros(req.getStopPx()));
-            }
+            details.put("s", hasStopPx ? Signing.removeTrailingZeros(req.getStopPx()) : null);
             action.put("details", details);
         }
 
