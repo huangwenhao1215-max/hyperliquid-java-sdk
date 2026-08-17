@@ -8,7 +8,6 @@ import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import okhttp3.OkHttpClient;
-import okhttp3.Protocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.web3j.crypto.Credentials;
@@ -650,15 +649,6 @@ public class HyperliquidClient {
                     .connectTimeout(Duration.ofSeconds(timeout))
                     .readTimeout(Duration.ofSeconds(timeout))
                     .writeTimeout(Duration.ofSeconds(timeout))
-                    // Force HTTP/1.1: OkHttp's default protocol list negotiates HTTP/2
-                    // when the server offers it (Hyperliquid's does via ALPN), and their
-                    // backend mishandles at least the newer /exchange routes (confirmed
-                    // with twapOrder) over HTTP/2 -- the request arrives corrupted enough
-                    // that signature verification recovers an unrelated address, surfacing
-                    // as a misleading "User or API Wallet ... does not exist" error. Plain
-                    // order/cancel calls happen to work over HTTP/2 too, but there's no
-                    // reason to keep the exposure now that a newer endpoint has hit it.
-                    .protocols(List.of(Protocol.HTTP_1_1))
                     .build();
         }
 
