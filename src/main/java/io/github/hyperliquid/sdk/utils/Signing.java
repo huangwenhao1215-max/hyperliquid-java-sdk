@@ -191,6 +191,19 @@ public final class Signing {
     }
 
     /**
+     * Strip trailing zeros from a decimal string ("2.0000" -> "2", "0.500" -> "0.5"),
+     * matching the canonical form Hyperliquid's backend hashes "p"/"s" fields in.
+     * Strings without a fractional part are returned unchanged.
+     */
+    public static String removeTrailingZeros(String value) {
+        if (value == null || value.indexOf('.') < 0) {
+            return value;
+        }
+        String stripped = value.replaceFirst("\\.?0+$", "");
+        return "-0".equals(stripped) ? "0" : stripped;
+    }
+
+    /**
      * Convert floating-point number to integer for hashing (magnified by 1e8).
      * <p>
      * Rules:
@@ -408,9 +421,19 @@ public final class Signing {
                 Map<Object, Object> map = (Map<Object, Object>) obj;
                 packer.packMapHeader(map.size());
                 for (Map.Entry<Object, Object> e : map.entrySet()) {
+                    String key = String.valueOf(e.getKey());
+                    Object val = e.getValue();
+                    // Hyperliquid's backend re-hashes "p"/"s" string fields in canonical form
+                    // (trailing zeros stripped, e.g. "2.0000" -> "2"); every reference SDK
+                    // normalizes them before hashing. Skipping this produced signatures that
+                    // recovered to a random address ("User or API Wallet 0x... does not exist")
+                    // for TWAP orders whose sz carried trailing zeros.
+                    if ((key.equals("p") || key.equals("s")) && val instanceof String str) {
+                        val = removeTrailingZeros(str);
+                    }
                     // Key encoded as string
-                    packer.packString(String.valueOf(e.getKey()));
-                    writeMsgpack(packer, e.getValue());
+                    packer.packString(key);
+                    writeMsgpack(packer, val);
                 }
                 return;
             }

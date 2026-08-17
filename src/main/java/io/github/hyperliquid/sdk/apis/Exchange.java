@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.github.hyperliquid.sdk.utils.Signing;
 import static io.github.hyperliquid.sdk.utils.Signing.MAINNET_MULTISIG_CHAIN_ID;
 
 
@@ -918,7 +919,11 @@ public class Exchange {
         Integer szDecimals = info.getSzDecimals(coin);
         if (szDecimals == null) return sz;
         try {
-            return new BigDecimal(sz).setScale(szDecimals, RoundingMode.DOWN).toPlainString();
+            String rounded = new BigDecimal(sz).setScale(szDecimals, RoundingMode.DOWN).toPlainString();
+            // Canonical form (no trailing zeros): matches how the backend re-hashes the
+            // "s" field for signature verification -- "2.0000" would be signed/hashed
+            // against "2" and rejected as an unknown signer wallet.
+            return Signing.removeTrailingZeros(rounded);
         } catch (NumberFormatException e) {
             throw new HypeError("Invalid TWAP order size format: " + sz + ". Must be a valid number.");
         }
