@@ -1375,6 +1375,22 @@ public class Info {
     }
 
     /**
+     * User TWAP history: every TWAP order the user has ever placed, each with
+     * its current {@code status} (finished/activated/terminated/
+     * waitingForTrigger/stopped/error) and cumulative execution
+     * ({@code executedSz}/{@code executedNtl}). Unlike {@link #userTwapSliceFills},
+     * this is keyed by {@code twapId} directly rather than a fill time window --
+     * the entry point for both live status checks and crash-recovery
+     * reconciliation of a TWAP order.
+     *
+     * @param address User address
+     * @return List of TWAP history entries (filter by twapId yourself)
+     */
+    public List<TwapHistoryEntry> twapHistory(String address) {
+        return JSONUtil.toList(postInfo(payload("twapHistory", "user", address)), TwapHistoryEntry.class);
+    }
+
+    /**
      * Frontend additional information unfilled orders (frontendOpenOrders).
      *
      * @param address User address

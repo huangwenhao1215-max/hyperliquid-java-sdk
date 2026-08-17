@@ -838,6 +838,87 @@ public class Exchange {
     }
 
     /**
+     * Place a TWAP order.
+     * <p>
+     * Unlike {@link #order(OrderRequest)}, the action Map is built by hand
+     * rather than via the {@code action(type, keyValues...)} helper: that
+     * helper silently drops any key whose value is {@code null}, but the
+     * {@code details.t} field below must be sent as an explicit {@code null}
+     * (present key, nil value) rather than omitted when there's no trigger
+     * price -- {@link Signing#packAsMsgpack} preserves explicit nulls inside
+     * a {@link Map}, which is what the exchange's schema expects.
+     * </p>
+     *
+     * @param req TWAP order parameters
+     * @return TWAP order response (holds the assigned {@code twapId} on success)
+     */
+    public TwapOrder twapOrder(TwapOrderRequest req) {
+        int assetId = switch (req.getInstrumentType()) {
+            case PERP -> ensureAssetId(req.getCoin());
+            case SPOT -> resolveSpotAssetId(req.getCoin());
+        };
+        String sz = formatTwapSize(req.getCoin(), req.getSz());
+
+        Map<String, Object> twap = new LinkedHashMap<>();
+        twap.put("a", assetId);
+        twap.put("b", req.getIsBuy());
+        twap.put("s", sz);
+        twap.put("r", req.getReduceOnly() != null ? req.getReduceOnly() : Boolean.FALSE);
+        twap.put("m", req.getMinutes());
+        twap.put("t", req.getRandomize() != null ? req.getRandomize() : Boolean.FALSE);
+
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "twapOrder");
+        action.put("twap", twap);
+
+        boolean hasTriggerPx = req.getTriggerPx() != null && !req.getTriggerPx().isEmpty();
+        boolean hasStopPx = req.getStopPx() != null && !req.getStopPx().isEmpty();
+        if (hasTriggerPx || hasStopPx) {
+            Map<String, Object> details = new LinkedHashMap<>();
+            if (hasTriggerPx) {
+                Map<String, Object> trigger = new LinkedHashMap<>();
+                trigger.put("p", req.getTriggerPx());
+                trigger.put("a", req.getTriggerAbove() != null ? req.getTriggerAbove() : Boolean.TRUE);
+                details.put("t", trigger);
+            } else {
+                details.put("t", null);
+            }
+            details.put("s", hasStopPx ? req.getStopPx() : null);
+            action.put("details", details);
+        }
+
+        return JSONUtil.convertValue(postAction(action), TwapOrder.class);
+    }
+
+    /**
+     * Cancel a running TWAP order.
+     *
+     * @param coinName Name of the coin/asset (e.g., "ETH")
+     * @param twapId   The TWAP id returned by {@link #twapOrder(TwapOrderRequest)}
+     * @return TWAP cancel response
+     */
+    public TwapCancelResult twapCancel(String coinName, long twapId) {
+        int assetId = ensureAssetId(coinName);
+        return JSONUtil.convertValue(postAction(action("twapCancel", "a", assetId, "t", twapId)), TwapCancelResult.class);
+    }
+
+    /**
+     * Rounds a TWAP order's size to the asset's size precision, same rule
+     * {@link #formatOrderSize(OrderRequest)} applies to regular orders
+     * (flooring, since flooring never risks exceeding the requested notional).
+     */
+    private String formatTwapSize(String coin, String sz) {
+        if (sz == null || sz.isEmpty()) return sz;
+        Integer szDecimals = info.getSzDecimals(coin);
+        if (szDecimals == null) return sz;
+        try {
+            return new BigDecimal(sz).setScale(szDecimals, RoundingMode.DOWN).toPlainString();
+        } catch (NumberFormatException e) {
+            throw new HypeError("Invalid TWAP order size format: " + sz + ". Must be a valid number.");
+        }
+    }
+
+    /**
      * Modify an existing order.
      *
      * @param request      The modification request containing new order parameters
